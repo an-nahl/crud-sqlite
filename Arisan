@@ -1,0 +1,240 @@
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Arisan',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const ArisanPage(),
+    );
+  }
+}
+
+class ArisanPage extends StatefulWidget {
+  const ArisanPage({Key? key}) : super(key: key);
+
+  @override
+  _ArisanPageState createState() => _ArisanPageState();
+}
+
+class _ArisanPageState extends State<ArisanPage> {
+  int displayNumber = 0;
+  bool isRunning = false;
+  bool isRandom = false;
+  int speed = 1000; // Default speed in milliseconds
+  int startValue = 0;
+  int endValue = 99;
+  List<int> excludeNumbers = [];
+
+  final Random random = Random();
+
+  void startCounter() {
+    if (!isRunning) {
+      isRunning = true;
+      Future.doWhile(() async {
+        if (!isRunning) return false;
+        await Future.delayed(Duration(milliseconds: speed));
+        setState(() {
+          displayNumber = getNextNumber();
+        });
+        return true;
+      });
+    }
+  }
+
+  void stopCounter() {
+    setState(() {
+      isRunning = false;
+      displayNumber = startValue;
+    });
+  }
+
+  int getNextNumber() {
+    int nextNumber;
+    if (isRandom) {
+      do {
+        nextNumber = startValue + random.nextInt(endValue - startValue + 1);
+      } while (excludeNumbers.contains(nextNumber));
+    } else {
+      nextNumber = displayNumber + 1;
+      if (nextNumber > endValue) {
+        nextNumber = startValue;
+      }
+      if (excludeNumbers.contains(nextNumber)) {
+        return getNextNumber();
+      }
+    }
+    return nextNumber;
+  }
+
+  void openSettings() async {
+    int tempSpeed = speed;
+    int tempStart = startValue;
+    int tempEnd = endValue;
+    bool tempRandom = isRandom;
+    String excludeInput = excludeNumbers.join(',');
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Settings'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Kecepatan (ms)',
+                  ),
+                  keyboardType: TextInputType.number,
+                  controller: TextEditingController(text: tempSpeed.toString()),
+                  onChanged: (value) {
+                    tempSpeed = int.tryParse(value) ?? speed;
+                  },
+                ),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Nilai Awal',
+                  ),
+                  keyboardType: TextInputType.number,
+                  controller: TextEditingController(text: tempStart.toString()),
+                  onChanged: (value) {
+                    tempStart = int.tryParse(value) ?? startValue;
+                  },
+                ),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Nilai Akhir',
+                  ),
+                  keyboardType: TextInputType.number,
+                  controller: TextEditingController(text: tempEnd.toString()),
+                  onChanged: (value) {
+                    tempEnd = int.tryParse(value) ?? endValue;
+                  },
+                ),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Pengecualian (dipisah koma)',
+                  ),
+                  controller: TextEditingController(text: excludeInput),
+                  onChanged: (value) {
+                    excludeInput = value;
+                    setDialogState(() {
+                      excludeNumbers = excludeInput
+                          .split(',')
+                          .map((e) => int.tryParse(e.trim()) ?? -1)
+                          .where((e) => e != -1)
+                          .toList();
+                    });
+                  },
+                ),
+                Row(
+                  children: [
+                    const Text('Acak'),
+                    Switch(
+                      value: tempRandom,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          tempRandom = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    speed = tempSpeed;
+                    startValue = tempStart;
+                    endValue = tempEnd;
+                    isRandom = tempRandom;
+                    excludeNumbers = excludeInput
+                        .split(',')
+                        .map((e) => int.tryParse(e.trim()) ?? -1)
+                        .where((e) => e != -1)
+                        .toList();
+                    displayNumber = startValue;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Arisan'),
+      ),
+      body: Stack(
+        children: [
+          Center(
+            child: Text(
+              displayNumber.toString().padLeft(2, '0'),
+              style: const TextStyle(
+                fontSize: 150, // Ukuran font besar
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+                fontFamily: 'Courier',
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: openSettings,
+              child: const Icon(Icons.settings),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 200), // Tambah jarak ke atas
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: startCounter,
+                      child: const Text('Start'),
+                    ),
+                    const SizedBox(width: 20),
+                    ElevatedButton(
+                      onPressed: stopCounter,
+                      child: const Text('Finish'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
